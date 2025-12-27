@@ -186,5 +186,131 @@ Keepers can feed daily carry inputs:
 
 The vault computes:
 expected_carry_bps = staking + funding - borrow 
+
+
+Strongly positive or negative carry slightly biases hedge aggressiveness.
+
+---
+
+## 🧷 Hedge flow (two-phase intent → confirm)
+
+### 1) 🟡 `request_hedge()` (permissionless)
+
+Anyone can request a hedge if:
+- Enough time has passed since the last hedge
+- Drift condition passes:
+  - Normal mode: EMA drift ≥ `band_bps`
+  - Degraded mode: EMA drift ≥ `extreme_drift_bps`
+
+Emits `HedgeRequested` with:
+- Target hedge notional (delta-neutral sizing)
+- Current hedge notional
+- Delta gap
+- Drift bps
+- Oracle snapshot + config hash
+- Expected carry
+
+This is the **on-chain hedge intent** signal.
+
+### 2) ✅ `confirm_hedge()` (keeper only)
+
+Keeper confirms off-chain execution by recording:
+- `new_hedge_notional_usd`
+- `fill_price_fp`
+
+Tracks:
+- `avg_fill_slippage_bps` (EWMA)
+- `hedge_fill_count`
+- Missed confirms if a request expires
+
+---
+
+## 🛡️ Safety & admin controls
+
+### ✅ Pause / emergency modes
+- `paused`: blocks most actions
+- `emergency_withdraw_enabled`: emergency workflows (simulated)
+
+### ✅ Two-step authority transfer
+- `set_pending_authority()`
+- `accept_authority()`
+
+### ✅ Keeper separation
+- Authority delegates to `keeper_admin`
+- Keeper admin manages keepers
+- Keepers are rate-limited and may require a simulated bond
+
+### ✅ Config identity
+Each config mutation bumps:
+- `config_version`
+- `config_hash`
+
+The hash allows off-chain automation to verify policy integrity.
+
+---
+
+## 📣 Events (indexable)
+
+The program emits events for:
+- Vault initialization and config changes
+- Stake and reserve updates
+- Oracle updates and degradation
+- Oracle return samples
+- Epoch and policy updates
+- NAV snapshots
+- Hedge requests, confirmations, and misses
+- Keeper admin and bond activity
+
+Ideal for:
+- Dashboards
+- Keeper monitoring
+- Backtesting and analytics
+
+---
+
+## 🧪 Typical usage flow
+
+1. **Initialize**
+   - `initialize_vault(params)`
+
+2. **Set keepers**
+   - `add_keeper()`
+
+3. **Feed oracle**
+   - `update_oracle_price()`
+
+4. **Optional inputs**
+   - `update_implied_vol()`
+   - `update_carry_inputs()`
+
+5. **Advance epoch**
+   - `update_epoch_and_policy()`
+
+6. **Request hedge**
+   - `request_hedge()`
+
+7. **Confirm execution**
+   - `confirm_hedge()`
+
+---
+
+## ⚠️ Important notes
+
+- This is a **simulation vault**: no token transfers, staking, or perps.
+- Oracle publish time is handled in **unix seconds**, not slots.
+- Designed as a foundation for production systems where:
+  - `request_hedge()` signals intent
+  - A keeper executes on Drift / Hyperliquid / etc.
+  - `confirm_hedge()` records fills and performance
+
+---
+
+## ✅ What this is great for
+
+- Volatility-aware hedge policy research 📊
+- Keeper + automation architecture experiments 🤖
+- Circuit breaker + oracle hardening patterns 🧯
+- A clean stepping stone to real delta-hedged staking vaults on Solana 🌊
+
 Strongly positive or negative carry slightly biases hedge aggressiveness.
 
