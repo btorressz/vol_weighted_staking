@@ -80,4 +80,37 @@ The main account is `VaultState`, which stores:
 - `min_hedge_interval_slots` — cooldown between hedge intents
 - Hysteresis + slew controls to prevent noisy oscillation
 
+  ---
+
+  ## 🔮 Oracle logic (Pyth) — how prices are validated
+
+The program reads from **two Pyth price accounts**:
+
+- SOL/USD feed
+- SOL/USDC feed
+
+A configurable `oracle_feed_choice` selects:
+
+- SOL/USD only
+- SOL/USDC only
+- Auto: prefer USD feed, fallback to USDC feed
+
+### 🧯 Oracle safety gates
+
+Each update checks:
+
+- **Staleness**: publish time must be within `max_price_age_slots`  
+  _Note: in this implementation, `max_price_age_slots` is treated as seconds._
+- **Confidence**: confidence interval must be below `max_confidence_bps` of price
+- **Jump sanity**: price change vs last accepted price must be below `max_price_jump_bps`
+- **Basic sanity**: price must be positive and within bounds
+
+If checks fail:
+
+- `oracle_ok = false`
+- `oracle_degraded = true`
+- Policy updates freeze (circuit breaker behavior)
+
+---
+
 ---
