@@ -177,4 +177,14 @@ To avoid thrashing:
 
 ---
 
----
+## 💸 Carry-aware bias
+
+Keepers can feed daily carry inputs:
+- Funding (perps)
+- Borrow cost
+- Staking yield
+
+The vault computes:
+expected_carry_bps = staking + funding - borrow 
+Strongly positive or negative carry slightly biases hedge aggressiveness.
+
