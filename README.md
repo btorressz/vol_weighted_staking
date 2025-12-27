@@ -113,4 +113,68 @@ If checks fail:
 
 ---
 
+## 🌪️ Realized volatility (computed on-chain)
+
+Whenever oracle updates are valid, the vault records an oracle return into a ring buffer (32 samples).  
+Returns are clamped to avoid extreme outliers and spaced out by `min_return_spacing_slots`.
+
+### Available volatility modes
+
+**1) 📏 STDEV proxy**  
+Computes standard deviation over the return buffer.
+
+**2) ⚡ EWMA variance**  
+Maintains an EWMA variance accumulator (`ewma_var_fp2`) and converts it into a standard deviation proxy.
+
+**3) 🧱 MAD proxy (robust)**  
+Computes median absolute deviation and scales it to approximate standard deviation behavior.
+
+The output is normalized into basis points:
+
+- `realized_vol_bps` ∈ `[0, 10_000]`
+
+---
+
+## 🧮 Vol score (realized + implied)
+
+Keepers can optionally feed `implied_vol_bps`.
+
+The vault blends:
+- Realized volatility (on-chain)
+- Implied volatility (keeper-fed)
+
+Using weights that must sum to 10,000 bps:
+- `vol_weight_realized_bps`
+- `vol_weight_implied_bps`
+
+Result:
+- `vol_score_bps` (0–10,000)
+
+This score drives the hedge policy mapping.
+
+---
+
+## 🧭 Policy engine (band + hedge interval)
+
+Each epoch update produces:
+
+### ✅ `band_bps`
+“How big the EMA drift must be before hedging is allowed.”
+
+### ✅ `min_hedge_interval_slots`
+“How long must pass between hedge intent requests.”
+
+Both are mapped from `vol_score_bps` into configured bounds:
+- `min_band_bps → max_band_bps`
+- `min_interval_slots → max_interval_slots`
+
+### 🧊 Stability controls
+
+To avoid thrashing:
+- Policy cooldown: `policy_update_min_slots`
+- Hysteresis: only adjust if `vol_score` changes enough
+- Slew rate limiting: gradual changes using `max_policy_slew_bps`
+
+---
+
 ---
